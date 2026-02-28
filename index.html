@@ -3,269 +3,136 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Stock Analysis Pro</title>
-    <!-- iOS PWA Meta Tags -->
+    <title>Stock Terminal Pro</title>
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2422/2422796.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root {
-            --ios-bg: #000000;
-            --ios-card: #1c1c1e;
-            --ios-blue: #0a84ff;
-            --ios-green: #32d74b;
-            --ios-red: #ff453a;
-            --ios-gray: #8e8e93;
-        }
-        body {
-            background-color: var(--ios-bg);
-            color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
-            padding-bottom: env(safe-area-inset-bottom);
-            -webkit-font-smoothing: antialiased;
-        }
-        .ios-card {
-            background-color: var(--ios-card);
-            border-radius: 22px;
-            padding: 24px;
-            margin-bottom: 16px;
-            border: 1px solid #2c2c2e;
-        }
-        .search-container {
-            background: #1c1c1e;
-            border-radius: 14px;
-            padding: 12px 16px;
-            border: 1px solid #3a3a3c;
-            display: flex;
-            align-items: center;
-            margin-bottom: 24px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-        }
-        .ios-input {
-            background: transparent;
-            border: none;
-            color: white;
-            width: 100%;
-            margin-left: 10px;
-            outline: none;
-            font-size: 17px;
-        }
-        .btn-search {
-            background: var(--ios-blue);
-            color: white;
-            padding: 8px 18px;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 14px;
-            transition: all 0.2s;
-        }
-        .btn-search:active { transform: scale(0.95); opacity: 0.8; }
-        .shimmer {
-            background: linear-gradient(90deg, #1c1c1e 25%, #2c2c2e 50%, #1c1c1e 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-        }
-        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-        canvas { width: 100% !important; height: 100% !important; }
+        :root { --ios-bg: #000; --ios-card: #1c1c1e; --ios-blue: #0a84ff; }
+        body { background: var(--ios-bg); color: #fff; font-family: -apple-system, system-ui, sans-serif; padding-bottom: env(safe-area-inset-bottom); }
+        .ios-card { background: var(--ios-card); border-radius: 20px; padding: 20px; margin-bottom: 12px; border: 1px solid #2c2c2e; }
+        .ios-input { background: #2c2c2e; border: none; border-radius: 12px; color: #fff; padding: 12px; width: 100%; font-size: 16px; outline: none; }
+        .btn-blue { background: var(--ios-blue); border-radius: 12px; padding: 12px; font-weight: 600; width: 100%; }
+        .btn-blue:active { opacity: 0.6; }
     </style>
 </head>
-<body class="p-5 pt-16">
+<body class="p-4 pt-14">
 
-    <!-- App Header -->
-    <header class="mb-8 px-1">
-        <h1 class="text-4xl font-black tracking-tight mb-2">市場分析</h1>
-        <div class="flex items-center gap-2">
-            <span class="relative flex h-2 w-2">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-            </span>
-            <p class="text-zinc-500 font-bold text-xs uppercase tracking-widest">Gemini AI Engine</p>
+    <header class="mb-6 px-1 flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-black">市場終端</h1>
+            <p id="apiStatus" class="text-zinc-500 text-xs font-bold">GEMINI AI 運作中</p>
+        </div>
+        <div id="loadingSpin" class="hidden">
+            <svg class="animate-spin h-5 w-5 text-blue-500" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
         </div>
     </header>
 
-    <!-- Search Input -->
-    <div class="search-container">
-        <svg class="h-5 w-5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-        </svg>
-        <input type="text" id="symbolInput" placeholder="輸入股號 (例: NVDA, 2330)" class="ios-input" spellcheck="false">
-        <button id="searchBtn" class="btn-search">搜尋</button>
+    <div class="ios-card">
+        <div class="flex gap-2">
+            <input type="text" id="symbol" placeholder="例: 2330 或 NVDA" class="ios-input">
+            <button onclick="fetchStock()" class="btn-blue w-24">搜尋</button>
+        </div>
     </div>
 
-    <!-- Main Content Area -->
-    <div id="contentArea" class="hidden">
+    <div id="mainUI" class="hidden">
         <div class="flex justify-between items-end mb-6 px-2">
             <div>
-                <h2 id="stockName" class="text-4xl font-black tracking-tighter mb-1">--</h2>
-                <div class="flex items-center gap-2">
-                    <span id="priceLabel" class="text-3xl font-bold tracking-tight">--</span>
-                    <span id="changeLabel" class="text-lg font-semibold">--</span>
+                <h2 id="name" class="text-3xl font-black">--</h2>
+                <div class="flex items-center gap-2 mt-1">
+                    <span id="price" class="text-2xl font-bold">--</span>
+                    <span id="change" class="font-bold text-sm">--</span>
                 </div>
             </div>
-            <div class="bg-blue-500/10 text-blue-500 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">Market Open</div>
+            <div class="bg-blue-500/20 text-blue-500 px-3 py-1 rounded-full text-[10px] font-black uppercase">Live</div>
         </div>
-
-        <!-- Trend Chart -->
-        <div class="ios-card">
-            <div class="flex justify-between items-center mb-6">
-                <span class="text-xs font-black text-zinc-500 uppercase tracking-widest">6個月走勢預覽</span>
-                <span class="text-[10px] text-zinc-400 font-bold">歷史收盤價</span>
-            </div>
-            <div class="h-64">
-                <canvas id="trendChart"></canvas>
-            </div>
-        </div>
-
-        <!-- Key Indicators -->
-        <div class="grid grid-cols-2 gap-4 mb-24">
-            <div class="ios-card !p-4">
-                <p class="text-[10px] font-black text-zinc-500 uppercase tracking-widest">公司市值</p>
-                <p id="marketCapLabel" class="text-lg font-bold mt-1 text-zinc-200">--</p>
-            </div>
-            <div class="ios-card !p-4">
-                <p class="text-[10px] font-black text-zinc-500 uppercase tracking-widest">本益比 (P/E)</p>
-                <p id="peLabel" class="text-lg font-bold mt-1 text-zinc-200">--</p>
-            </div>
+        <div class="ios-card h-64"><canvas id="chart"></canvas></div>
+        <div class="grid grid-cols-2 gap-3 mb-24">
+            <div class="ios-card !p-4"><p class="text-[10px] text-zinc-500 font-bold">市值</p><p id="mcap" class="text-sm font-bold">--</p></div>
+            <div class="ios-card !p-4"><p class="text-[10px] text-zinc-500 font-bold">本益比</p><p id="pe" class="text-sm font-bold">--</p></div>
         </div>
     </div>
 
-    <!-- Loading Skeleton -->
-    <div id="loadingUI" class="hidden space-y-4">
-        <div class="ios-card shimmer h-64"></div>
-        <div class="grid grid-cols-2 gap-4">
-            <div class="ios-card shimmer h-24"></div>
-            <div class="ios-card shimmer h-24"></div>
-        </div>
-    </div>
-
-    <!-- Tab Bar -->
-    <nav class="fixed bottom-0 left-0 right-0 bg-black/80 backdrop-blur-3xl border-t border-white/5 flex justify-around p-3 pb-8 z-50">
-        <div class="flex flex-col items-center text-blue-500">
-            <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
-            <span class="text-[10px] mt-1 font-bold">分析</span>
-        </div>
-        <div class="flex flex-col items-center text-zinc-600">
-            <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-            <span class="text-[10px] mt-1 font-bold">市場</span>
-        </div>
-        <div class="flex flex-col items-center text-zinc-600">
-            <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-            <span class="text-[10px] mt-1 font-bold">我的</span>
-        </div>
-    </nav>
+    <div id="status" class="text-center text-zinc-600 py-20 text-sm italic">輸入股號開始分析...</div>
 
     <script>
-        /**
-         * ⚠️ 重要：請在此處貼上您的 API Key
-         */
-        const apiKey ="AIzaSyB27QWKeAC-8Yh9POxePAXMrJP3xgubSLc"; 
+        // ⚠️ 請務必確認 API Key 填寫在雙引號內，且沒有多餘空格
+        const apiKey = "AIzaSyB27QWKeAC-8Yh9POxePAXMrJP3xgubSLc"; 
 
-        let myChart = null;
-        const searchBtn = document.getElementById('searchBtn');
-        const symbolInput = document.getElementById('symbolInput');
-        const loadingUI = document.getElementById('loadingUI');
-        const contentArea = document.getElementById('contentArea');
+        let chart = null;
 
-        // 指數退避請求 ( exponential backoff )
-        async function fetchWithRetry(url, options, retries = 5, backoff = 1000) {
-            try {
-                const response = await fetch(url, options);
-                if (!response.ok) throw new Error('API Request Failed');
-                return await response.json();
-            } catch (err) {
-                if (retries > 0) {
-                    await new Promise(r => setTimeout(r, backoff));
-                    return fetchWithRetry(url, options, retries - 1, backoff * 2);
-                }
-                throw err;
-            }
-        }
+        async function fetchStock() {
+            let s = document.getElementById('symbol').value.trim().toUpperCase();
+            if (!s) return;
+            if (/^\d{4}$/.test(s)) s += ".TW";
 
-        async function fetchStockAnalysis(symbol) {
-            if (!apiKey) {
-                alert("請在程式碼中填入您的 API Key 才能抓取真實數據！");
+            if (!apiKey || apiKey.length < 10) {
+                alert("API Key 格式不正確，請檢查 GitHub 程式碼第 58 行。");
                 return;
             }
 
-            // 處理台股四位數字代碼
-            let target = symbol.trim().toUpperCase();
-            if (/^\d{4}$/.test(target)) target += ".TW";
+            document.getElementById('status').innerText = "AI 正在從 Google 搜尋獲取數據...";
+            document.getElementById('loadingSpin').classList.remove('hidden');
+            document.getElementById('mainUI').classList.add('hidden');
 
-            loadingUI.classList.remove('hidden');
-            contentArea.classList.add('hidden');
-
-            const prompt = `請精確搜尋並提供股票 ${target} 的最新數據。
-            請以 JSON 格式回傳一個物件，包含以下欄位：
-            "name" (公司繁體中文名稱), 
-            "price" (當前最新市價), 
-            "change" (漲跌額), 
-            "pct" (漲跌幅), 
-            "mCap" (市值), 
-            "pe" (本益比),
-            "history" (陣列，包含過去 6 個月的 date(YYYY-MM) 與 close 價格)。
-            請務必使用 Google Search 獲取最新真實資訊。`;
+            // 強制要求 AI 只回傳純 JSON
+            const prompt = `請搜尋 ${s} 最新資訊。嚴禁回傳任何對話。只回傳此格式的純 JSON：{"name":"公司名","price":0.0,"change":"+0.0","pct":"+0.0%","mcap":"市值","pe":"本益比","history":[{"date":"MM-DD","close":0.0}]}`;
 
             try {
-                const result = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{ parts: [{ text: prompt }] }],
-                        tools: [{ "google_search": {} }],
-                        generationConfig: { responseMimeType: "application/json" }
+                        tools: [{ "google_search": {} }]
                     })
                 });
 
-                const content = JSON.parse(result.candidates[0].content.parts[0].text);
-                updateDisplay(content);
-            } catch (err) {
-                console.error(err);
-                alert("數據讀取錯誤，請檢查您的 API Key 或稍後再試。");
+                if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+
+                const json = await res.json();
+                let rawText = json.candidates[0].content.parts[0].text;
+                
+                // --- 防呆過濾邏輯：移除 AI 可能加上的 Markdown 標記 ---
+                rawText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+                
+                const data = JSON.parse(rawText);
+                render(data);
+            } catch (e) {
+                console.error(e);
+                document.getElementById('status').innerText = "數據解析失敗。原因：" + e.message;
             } finally {
-                loadingUI.classList.add('hidden');
-                contentArea.classList.remove('hidden');
+                document.getElementById('loadingSpin').classList.add('hidden');
             }
         }
 
-        function updateDisplay(data) {
-            document.getElementById('stockName').innerText = data.name;
-            document.getElementById('priceLabel').innerText = "$" + data.price;
-            
-            const changeLabel = document.getElementById('changeLabel');
-            changeLabel.innerText = `${data.change} (${data.pct})`;
-            changeLabel.className = data.change.toString().includes('-') 
-                ? "text-lg font-semibold text-red-500" 
-                : "text-lg font-semibold text-green-500";
+        function render(data) {
+            document.getElementById('status').classList.add('hidden');
+            document.getElementById('mainUI').classList.remove('hidden');
+            document.getElementById('name').innerText = data.name || "未知股票";
+            document.getElementById('price').innerText = "$" + (data.price || "--");
+            const c = document.getElementById('change');
+            c.innerText = `${data.change || ""} (${data.pct || ""})`;
+            c.className = String(data.change).includes('-') ? "text-red-500 font-bold" : "text-green-500 font-bold";
+            document.getElementById('mcap').innerText = data.mcap || "--";
+            document.getElementById('pe').innerText = data.pe || "--";
 
-            document.getElementById('marketCapLabel').innerText = data.mCap;
-            document.getElementById('peLabel').innerText = data.pe;
-
-            // 渲染趨勢圖
-            renderChart(data.history);
-        }
-
-        function renderChart(history) {
-            const ctx = document.getElementById('trendChart').getContext('2d');
-            if (myChart) myChart.destroy();
-
-            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-            gradient.addColorStop(0, 'rgba(10, 132, 255, 0.4)');
-            gradient.addColorStop(1, 'rgba(10, 132, 255, 0)');
-
-            myChart = new Chart(ctx, {
+            const ctx = document.getElementById('chart').getContext('2d');
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: history.map(h => h.date),
+                    labels: data.history.map(h => h.date),
                     datasets: [{
-                        data: history.map(h => h.close),
+                        data: data.history.map(h => h.close),
                         borderColor: '#0a84ff',
                         borderWidth: 3,
                         pointRadius: 0,
-                        tension: 0.4,
                         fill: true,
-                        backgroundColor: gradient
+                        backgroundColor: 'rgba(10, 132, 255, 0.1)',
+                        tension: 0.4
                     }]
                 },
                 options: {
@@ -273,26 +140,12 @@
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
                     scales: {
-                        x: { display: true, grid: { display: false }, ticks: { color: '#636366', font: { size: 10 } } },
-                        y: { display: true, grid: { color: '#2c2c2e' }, ticks: { color: '#636366', font: { size: 10 } } }
+                        x: { ticks: { color: '#636366', font: { size: 10 } }, grid: { display: false } },
+                        y: { ticks: { color: '#636366', font: { size: 10 } }, grid: { color: '#2c2c2e' } }
                     }
                 }
             });
         }
-
-        searchBtn.addEventListener('click', () => {
-            if (symbolInput.value) fetchStockAnalysis(symbolInput.value);
-        });
-
-        symbolInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') searchBtn.click();
-        });
-
-        // 初始載入預設股票 (NVDA)
-        window.onload = () => {
-            symbolInput.value = "NVDA";
-            fetchStockAnalysis("NVDA");
-        };
     </script>
 </body>
 </html>
